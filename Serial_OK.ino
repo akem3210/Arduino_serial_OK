@@ -1,6 +1,3 @@
-// TODO: add events handler/manager so we can seemlesly 
-// update hardware(motors based on curve speed) or LED blink etc,
-// and receive commands at the same time.
 #include <Stepper.h>
 
 // LED attached to the board
