@@ -1,0 +1,96 @@
+#!/usr/bin/env ruby
+require "serialport"
+require "./commands.rb"
+require "open3"
+
+$t1 = Thread.new() {
+  init()
+  
+  IO.popen("aseqdump -p 20").each do |fd|
+	s = fd.strip
+	begin
+		midi_input =	[ s.match(/ .*  /)[0].strip,
+				  s.match(/.*0, ([^,]*),/)[1].strip.match(/ (.*)/)[1].to_i,
+				  s.match(/.*0, [^,]*, (.*)/)[1].strip.match(/ (.*)/)[1].to_i
+				]
+	rescue
+  		midi_input = ["0", 0, 0]
+  	end
+  	# see commands.rb
+	handle_input(midi_input)
+	
+	if(midi_input[0].include? "Note on") and (midi_input[1] == 27) then
+		begin
+			puts "RELOADING CODE..."
+			load("./commands.rb")
+			init()
+			puts "CODE RELOADED"
+		rescue Exception => e
+    			puts "ERROR RELOADING CODE: ", e
+    			puts "RELOADING SAFE CODE..."
+    			load("./safe_commands.rb")
+    			init()
+			puts "SAFE CODE RELOADED"
+		end
+	end
+	
+  end
+}
+
+
+
+port_str = "/dev/ttyUSB0"
+baud_rate = 115200 # default 9600
+data_bits = 8
+stop_bits = 1
+parity = SerialPort::NONE
+
+$sp = SerialPort.new(port_str, baud_rate, data_bits, stop_bits, parity)
+$sp.read_timeout = 1000
+#$sp.write_timeout = 1000
+
+puts "Arduino must be loaded with the Serial_OK program and connected on USB."
+puts "This program send a command {cmd=X} to the arduino which replies back as echo."
+puts "Waiting 5 seconds before starting..."
+0.upto(4){ |i|
+	puts "* #{i} *"
+	sleep 1
+}
+
+puts "-GO!-"
+
+i = 0
+while true do
+ 
+ if(i < 10) then
+  cmd = "{ANIMATRONIC=#{i}}"
+  puts "cmd=\"#{cmd}\""
+  $sp.write(cmd)
+ end
+ 
+  message = $sp.gets
+  if(message) then
+    message.chomp!
+    puts "echoed=\"#{message}\""
+  end
+ 
+  i += 1
+#  if(i == 100) then i = 0; end
+  
+  $sp.flush_output
+  $sp.flush_input
+  
+#  sleep 0.1 #5
+end
+=begin
+0.upto(25){
+message = $sp.gets
+  if(message) then
+    message.chomp!
+    puts "post=\"#{message}\""
+  end
+}
+=end
+$sp.flush_output
+$sp.flush_input
+$sp.close

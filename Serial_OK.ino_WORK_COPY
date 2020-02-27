@@ -1,0 +1,60 @@
+// the setup routine runs once when you press reset:
+void setup() {
+  // initialize serial communication
+  Serial.begin(115200); // default 9600
+  Serial.flush();
+}
+
+#define CMD_MAX_SIZE 1024
+boolean serial_cmd_begin = false,
+        serial_cmd_end = false;
+char serial_cmd[CMD_MAX_SIZE];
+int serial_cmd_char_pos = 0;
+
+void read_serial_cmd(int size = CMD_MAX_SIZE, boolean echo = false) {
+  for(int i = 0; i < size; i++) {
+    if(Serial.available()) {
+      char c = Serial.read();
+
+      if(c == '{') {
+        serial_cmd_begin = true;
+        serial_cmd_end = false;
+        serial_cmd_char_pos = 0;
+      }
+      else if(c == '}') { 
+        if(serial_cmd_begin == true) {
+          serial_cmd_begin = false;
+          serial_cmd_end = true;
+          serial_cmd[serial_cmd_char_pos] = 0;
+          break;
+        }
+      }
+      // also include { and } but not it's not important since tested after the 2 others
+      // Otherwise we get lots of "ÿÿÿÿÿÿÿÿÿ" especially with delay with reads and writes
+      else if((c > 31) && (c < 126)) { 
+        if(serial_cmd_begin == true) {
+          serial_cmd[serial_cmd_char_pos] = c;
+          serial_cmd_char_pos += 1;
+        }
+      }
+    }
+  }
+  if((serial_cmd_end == true) && (echo == true)) {
+    if(serial_cmd_end == true){
+      Serial.println(&serial_cmd[0]);
+      memset(serial_cmd, 0, CMD_MAX_SIZE);
+      serial_cmd_end = false;
+    }
+  }
+  
+  Serial.flush();
+}
+
+// the loop routine runs over and over again forever:
+void loop() {
+  read_serial_cmd(CMD_MAX_SIZE, true);
+////  delay(100);
+}
+
+
+
